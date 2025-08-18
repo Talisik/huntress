@@ -2,7 +2,7 @@
 
 A powerful TypeScript library for extracting structured data from YouTube pages. Perfect for browser extensions, web scraping projects, and data analysis tools.
 
-## �� Features
+## Features
 
 - **Dual Parsing Methods**: DOM-based parsing for browser environments and regex-based parsing for Node.js
 - **Comprehensive Data Extraction**: Extract video titles, descriptions, and raw YouTube data objects
@@ -14,7 +14,7 @@ A powerful TypeScript library for extracting structured data from YouTube pages.
 ## 📦 Installation
 
 ```bash
-npm install huntress-youtube-scraper
+npm install talisik-huntress
 ```
 
 ## 🛠️ Usage
