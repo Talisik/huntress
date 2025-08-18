@@ -5,8 +5,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "test": "ts-node test/simple-test.ts",
+    "build": "tsc",
+    "dev": "ts-node src/index.ts"
   },
   "repository": {
     "type": "git",
@@ -21,7 +22,12 @@
   },
   "homepage": "https://github.com/Talisik/huntress#readme",
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^24.3.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "jsdom": "^26.1.0"
   }
 }

@@ -10,7 +10,6 @@ export interface ScraperOptions {
 export interface VideoInfo {
   title: string;
   description: string;
-  transcript: string;
 }
 
 export class YouTubeScraper {
@@ -24,13 +23,14 @@ export class YouTubeScraper {
   }
 
   /**
-   * Scrapes YouTube data from HTML content using native DOM parsing
+   * Scrapes YouTube data from HTML content using native DOM parsing for browser extensions
    * @param html - The HTML content as a string
    * @returns Array of extracted data objects
    */
   public scrape(html: string): YouTubeData[] {
     const results: YouTubeData[] = [];
     
+    // For browser extensions, we can parse HTML directly
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const scripts = doc.querySelectorAll('script');
@@ -96,7 +96,7 @@ export class YouTubeScraper {
   }
 
   /**
-   * Extracts video information (title, description, transcript) from HTML
+   * Extracts video information (title, description) from HTML
    * @param html - The HTML content as a string
    * @returns Video information object
    */
@@ -115,22 +115,20 @@ export class YouTubeScraper {
     if (!ytInitialData) {
       return {
         title: '',
-        description: '',
-        transcript: ''
+        description: ''
       };
     }
 
     const title = this.extractTitle(ytInitialData);
     const description = this.extractDescription(ytInitialData);
-    const transcript = this.extractTranscript(ytInitialData);
 
-    return { title, description, transcript };
+    return { title, description };
   }
 
   /**
    * Formats video information in the requested format
    * @param html - The HTML content as a string
-   * @returns Formatted string with title, description, and transcript
+   * @returns Formatted string with title and description
    */
   public formatVideoInfo(html: string): string {
     const videoInfo = this.extractVideoInfo(html);
@@ -145,11 +143,6 @@ export class YouTubeScraper {
     // Add description
     if (videoInfo.description) {
       formatted += `${videoInfo.description}\n\n`;
-    }
-    
-    // Add transcript
-    if (videoInfo.transcript) {
-      formatted += videoInfo.transcript;
     }
     
     return formatted.trim();
@@ -173,11 +166,14 @@ export class YouTubeScraper {
   }
 
   private extractDescription(data: any): string {
-    // Look for description in the structured description content
+    // Look for description in multiple possible locations
     const descriptionPaths = [
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[1]?.videoSecondaryInfoRenderer?.attributedDescription?.content',  // Fixed: correct path with [1] index
       'contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults?.results?.[0]?.itemSectionRenderer?.contents?.[0]?.backstagePostRenderer?.contentText?.runs?.[0]?.text',
       'contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults?.results?.[0]?.itemSectionRenderer?.contents?.[0]?.expandableVideoDescriptionBodyRenderer?.attributedDescriptionBodyText?.content',
-      'videoDetails?.shortDescription'
+      'videoDetails?.shortDescription',
+      'videoDetails?.attributedDescription?.content',
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[0]?.videoPrimaryInfoRenderer?.description?.runs?.[0]?.text'
     ];
 
     for (const path of descriptionPaths) {
@@ -186,53 +182,6 @@ export class YouTubeScraper {
     }
 
     return '';
-  }
-
-  private extractTranscript(data: any): string {
-    // Look for transcript data
-    const transcriptPaths = [
-      'contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults?.results?.[0]?.itemSectionRenderer?.contents?.[0]?.videoDescriptionTranscriptSectionRenderer?.transcriptRendererBody?.transcriptBodyRenderer?.cueGroups'
-    ];
-
-    for (const path of transcriptPaths) {
-      const transcriptData = this.getNestedValue(data, path);
-      if (transcriptData && Array.isArray(transcriptData)) {
-        return this.formatTranscript(transcriptData);
-      }
-    }
-
-    return '';
-  }
-
-  private formatTranscript(cueGroups: any[]): string {
-    const transcriptLines: string[] = [];
-
-    for (const cueGroup of cueGroups) {
-      const cues = cueGroup?.transcriptCueGroupRenderer?.cues;
-      if (cues && Array.isArray(cues)) {
-        for (const cue of cues) {
-          const transcriptCueRenderer = cue?.transcriptCueRenderer;
-          if (transcriptCueRenderer) {
-            const startMs = transcriptCueRenderer?.startOffsetMs || 0;
-            const text = transcriptCueRenderer?.cue?.simpleText || '';
-            
-            if (text) {
-              const timestamp = this.formatTimestamp(startMs);
-              transcriptLines.push(`${timestamp}: ${text}`);
-            }
-          }
-        }
-      }
-    }
-
-    return transcriptLines.join('\n');
-  }
-
-  private formatTimestamp(milliseconds: number): string {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
   private getNestedValue(obj: any, path: string): any {
@@ -269,6 +218,69 @@ export class YouTubeScraper {
   public scrapeByName(html: string, variableName: string): YouTubeData | null {
     const results = this.scrape(html);
     return results.find(data => data.name === variableName) || null;
+  }
+
+  /**
+   * Extracts ytInitialData as JSON string
+   * @param html - The HTML content as a string
+   * @returns JSON string of ytInitialData or null
+   */
+  public extractYtInitialDataJson(html: string): string | null {
+    const scrapedData = this.scrapeWithRegex(html);
+    const initialData = scrapedData.find(data => data.name === 'ytInitialData');
+    
+    if (initialData) {
+      return JSON.stringify(initialData.value, null, 2);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Extracts ytInitialPlayerResponse as JSON string
+   * @param html - The HTML content as a string
+   * @returns JSON string of ytInitialPlayerResponse or null
+   */
+  public extractYtInitialPlayerResponseJson(html: string): string | null {
+    const scrapedData = this.scrapeWithRegex(html);
+    const playerResponse = scrapedData.find(data => data.name === 'ytInitialPlayerResponse');
+    
+    if (playerResponse) {
+      return JSON.stringify(playerResponse.value, null, 2);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Extracts both ytInitialData and ytInitialPlayerResponse as JSON strings
+   * @param html - The HTML content as a string
+   * @returns Object with both JSON strings or null values
+   */
+  public extractAllYoutubeDataJson(html: string): {
+    ytInitialData: string | null;
+    ytInitialPlayerResponse: string | null;
+  } {
+    return {
+      ytInitialData: this.extractYtInitialDataJson(html),
+      ytInitialPlayerResponse: this.extractYtInitialPlayerResponseJson(html)
+    };
+  }
+
+  /**
+   * Extracts description from ytInitialData
+   * @param html - The HTML content as a string
+   * @returns The video description or empty string
+   */
+  public extractDescriptionFromInitialData(html: string): string {
+    const scrapedData = this.scrapeWithRegex(html);
+    const initialData = scrapedData.find(data => data.name === 'ytInitialData');
+    
+    if (initialData) {
+      return this.extractDescription(initialData.value);
+    }
+    
+    return '';
   }
 }
 

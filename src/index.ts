@@ -1,1 +1,1 @@
-export * from "./youtube-scraper.js";
+export * from "./youtube-scraper";
