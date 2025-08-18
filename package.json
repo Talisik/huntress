@@ -1,5 +1,5 @@
 {
-  "name": "@talisik/huntress",
+  "name": "talisik-huntress",
   "version": "1.0.0",
   "description": "A TypeScript library for extracting and working with YouTube video transcripts.",
   "main": "dist/index.js",
