@@ -14,10 +14,21 @@ async function simpleTest() {
     // Test 1: Extract video information from HTML string
     console.log('1. Extracting video information from HTML...');
     const videoInfo = scraper.extractVideoInfo(html);
-    
+
     console.log('✅ Video Title:', videoInfo.title);
-    console.log('✅ Description length:', videoInfo.description.length);
-    
+    console.log('✅ Description:', videoInfo.description ? videoInfo.description.substring(0, 100) + (videoInfo.description.length > 100 ? '...' : '') : '(none)');
+    console.log('✅ Thumbnail URL:', videoInfo.thumbnailUrl || '(none)');
+    if (Array.isArray(videoInfo.allThumbnails) && videoInfo.allThumbnails.length > 0) {
+      console.log('✅ All Thumbnails:', videoInfo.allThumbnails.length, 'found');
+      console.log('   First thumbnail:', videoInfo.allThumbnails[0]);
+    } else {
+      console.log('✅ All Thumbnails: none found');
+    }
+    if (videoInfo.thumbnailsByQuality && Object.keys(videoInfo.thumbnailsByQuality).length > 0) {
+      console.log('✅ Thumbnails by quality:', Object.keys(videoInfo.thumbnailsByQuality).join(', '));
+    } else {
+      console.log('✅ Thumbnails by quality: none found');
+    }
     // Test 2: Get formatted output
     console.log('\n2. Getting formatted output...');
     const formatted = scraper.formatVideoInfo(html);
@@ -74,12 +85,36 @@ async function simpleTest() {
     console.log('   ytInitialData:', allJsonData.ytInitialData ? 'Found' : 'Not found');
     console.log('   ytInitialPlayerResponse:', allJsonData.ytInitialPlayerResponse ? 'Found' : 'Not found');
     
+    // Test 6: Extract thumbnail URLs
+    console.log('\n6. Extracting thumbnail URLs...');
+    const thumbnailUrl = scraper.extractThumbnailUrl(html);
+    const allThumbnails = scraper.extractAllThumbnailUrls(html);
+    const thumbnailsByQuality = scraper.extractThumbnailsByQuality(html);
+    
+    console.log('✅ Thumbnail extraction results:');
+    console.log('   Main thumbnail URL:', thumbnailUrl ? 'Found' : 'Not found');
+    console.log('   All thumbnails count:', allThumbnails.length);
+    console.log('   Quality thumbnails:', Object.keys(thumbnailsByQuality).filter(key => thumbnailsByQuality[key as keyof typeof thumbnailsByQuality]).length, 'types');
+    
+    if (thumbnailUrl) {
+      console.log('   Sample thumbnail:', thumbnailUrl.substring(0, 80) + '...');
+    }
+    
+    // Test 7: Verify thumbnail data in video info
+    console.log('\n7. Verifying thumbnail data in video info...');
+    console.log('✅ Video info thumbnail data:');
+    console.log('   Thumbnail URL:', videoInfo.thumbnailUrl ? 'Found' : 'Not found');
+    console.log('   All thumbnails count:', videoInfo.allThumbnails?.length || 0);
+    console.log('   Quality thumbnails:', Object.keys(videoInfo.thumbnailsByQuality || {}).filter(key => videoInfo.thumbnailsByQuality?.[key as keyof typeof videoInfo.thumbnailsByQuality]).length, 'types');
+    
     console.log('\n🎉 Simple test completed successfully!');
     console.log('\n📋 Usage in your extension:');
     console.log('const scraper = new YouTubeScraper();');
     console.log('const videoInfo = scraper.extractVideoInfo(htmlString);');
     console.log('const formatted = scraper.formatVideoInfo(htmlString);');
     console.log('const jsonData = scraper.extractAllYoutubeDataJson(htmlString);');
+    console.log('const thumbnailUrl = scraper.extractThumbnailUrl(htmlString);');
+    console.log('const allThumbnails = scraper.extractAllThumbnailUrls(htmlString);');
     
   } catch (error) {
     console.error('❌ Error in simple test:', error);

@@ -10,6 +10,15 @@ export interface ScraperOptions {
 export interface VideoInfo {
   title: string;
   description: string;
+  thumbnailUrl?: string;
+  allThumbnails?: string[];
+  thumbnailsByQuality?: {
+    hqdefault?: string;
+    maxresdefault?: string;
+    default?: string;
+    mqdefault?: string;
+    sddefault?: string;
+  };
 }
 
 export class YouTubeScraper {
@@ -101,28 +110,31 @@ export class YouTubeScraper {
    * @returns Video information object
    */
   public extractVideoInfo(html: string): VideoInfo {
-    // Try DOM parsing first, fallback to regex
-    let scrapedData: YouTubeData[];
-    try {
-      scrapedData = this.scrape(html);
-    } catch (error) {
-      // Fallback to regex method if DOM is not available
-      scrapedData = this.scrapeWithRegex(html);
-    }
-
-    const ytInitialData = scrapedData.find(data => data.name === 'ytInitialData')?.value;
+    const ytInitialData = this.getYouTubeData(html, 'ytInitialData');
     
     if (!ytInitialData) {
       return {
         title: '',
-        description: ''
+        description: '',
+        thumbnailUrl: '',
+        allThumbnails: [],
+        thumbnailsByQuality: {}
       };
     }
 
     const title = this.extractTitle(ytInitialData);
     const description = this.extractDescription(ytInitialData);
+    const thumbnailUrl = this.extractThumbnailUrl(html);
+    const allThumbnails = this.extractAllThumbnailUrls(html);
+    const thumbnailsByQuality = this.extractThumbnailsByQuality(html);
 
-    return { title, description };
+    return { 
+      title, 
+      description, 
+      thumbnailUrl, 
+      allThumbnails, 
+      thumbnailsByQuality 
+    };
   }
 
   /**
@@ -221,19 +233,25 @@ export class YouTubeScraper {
   }
 
   /**
+   * Gets YouTube data by variable name
+   * @param html - The HTML content as a string
+   * @param variableName - Name of the YouTube variable to extract
+   * @returns The variable data or null
+   */
+  private getYouTubeData(html: string, variableName: string): any {
+    const scrapedData = this.scrapeWithRegex(html);
+    const data = scrapedData.find(data => data.name === variableName);
+    return data?.value || null;
+  }
+
+  /**
    * Extracts ytInitialData as JSON string
    * @param html - The HTML content as a string
    * @returns JSON string of ytInitialData or null
    */
   public extractYtInitialDataJson(html: string): string | null {
-    const scrapedData = this.scrapeWithRegex(html);
-    const initialData = scrapedData.find(data => data.name === 'ytInitialData');
-    
-    if (initialData) {
-      return JSON.stringify(initialData.value, null, 2);
-    }
-    
-    return null;
+    const data = this.getYouTubeData(html, 'ytInitialData');
+    return data ? JSON.stringify(data, null, 2) : null;
   }
 
   /**
@@ -242,14 +260,8 @@ export class YouTubeScraper {
    * @returns JSON string of ytInitialPlayerResponse or null
    */
   public extractYtInitialPlayerResponseJson(html: string): string | null {
-    const scrapedData = this.scrapeWithRegex(html);
-    const playerResponse = scrapedData.find(data => data.name === 'ytInitialPlayerResponse');
-    
-    if (playerResponse) {
-      return JSON.stringify(playerResponse.value, null, 2);
-    }
-    
-    return null;
+    const data = this.getYouTubeData(html, 'ytInitialPlayerResponse');
+    return data ? JSON.stringify(data, null, 2) : null;
   }
 
   /**
@@ -273,15 +285,119 @@ export class YouTubeScraper {
    * @returns The video description or empty string
    */
   public extractDescriptionFromInitialData(html: string): string {
-    const scrapedData = this.scrapeWithRegex(html);
-    const initialData = scrapedData.find(data => data.name === 'ytInitialData');
-    
-    if (initialData) {
-      return this.extractDescription(initialData.value);
-    }
-    
-    return '';
+    const data = this.getYouTubeData(html, 'ytInitialData');
+    return data ? this.extractDescription(data) : '';
   }
+
+  /**
+   * Gets player response data from HTML
+   * @param html - The HTML content as a string
+   * @returns Player response data or null
+   */
+  private getPlayerResponseData(html: string): any {
+    return this.getYouTubeData(html, 'ytInitialPlayerResponse');
+  }
+
+  /**
+   * Gets quality score for thumbnail URL
+   * @param url - The thumbnail URL
+   * @returns Quality score (higher = better quality)
+   */
+  private getQualityScore(url: string): number {
+    if (url.includes('maxresdefault')) return 5;
+    if (url.includes('hqdefault')) return 4;
+    if (url.includes('mqdefault')) return 3;
+    if (url.includes('sddefault')) return 2;
+    if (url.includes('default')) return 1;
+    return 0;
+  }
+
+  /**
+   * Sorts thumbnails by quality (highest first)
+   * @param thumbnails - Array of thumbnail objects
+   * @returns Sorted thumbnails array
+   */
+  private sortThumbnailsByQuality(thumbnails: any[]): any[] {
+    return thumbnails.sort((a: any, b: any) => {
+      return this.getQualityScore(b.url) - this.getQualityScore(a.url);
+    });
+  }
+
+  /**
+   * Gets thumbnails from player response data
+   * @param data - Player response data
+   * @returns Array of thumbnail objects
+   */
+  private getThumbnailsFromData(data: any): any[] {
+    return data?.videoDetails?.thumbnail?.thumbnails || [];
+  }
+
+  /**
+   * Extracts thumbnail URL from YouTube HTML
+   * @param html - The HTML content as a string
+   * @returns The highest quality thumbnail URL or empty string
+   */
+  public extractThumbnailUrl(html: string): string {
+    const playerData = this.getPlayerResponseData(html);
+    if (!playerData) return '';
+    
+    const thumbnails = this.getThumbnailsFromData(playerData);
+    if (thumbnails.length === 0) return '';
+    
+    const sortedThumbnails = this.sortThumbnailsByQuality(thumbnails);
+    return sortedThumbnails[0]?.url || '';
+  }
+
+  /**
+   * Extracts all thumbnail URLs from YouTube HTML
+   * @param html - The HTML content as a string
+   * @returns Array of thumbnail URLs sorted by quality (highest first)
+   */
+  public extractAllThumbnailUrls(html: string): string[] {
+    const playerData = this.getPlayerResponseData(html);
+    if (!playerData) return [];
+    
+    const thumbnails = this.getThumbnailsFromData(playerData);
+    const sortedThumbnails = this.sortThumbnailsByQuality(thumbnails);
+    
+    return sortedThumbnails.map((thumb: any) => thumb.url).filter(Boolean);
+  }
+
+  /**
+   * Extracts thumbnail URLs by quality from YouTube HTML
+   * @param html - The HTML content as a string
+   * @returns Object with different quality thumbnail URLs
+   */
+  public extractThumbnailsByQuality(html: string): {
+    hqdefault?: string;
+    maxresdefault?: string;
+    default?: string;
+    mqdefault?: string;
+    sddefault?: string;
+  } {
+    const playerData = this.getPlayerResponseData(html);
+    if (!playerData) return {};
+    
+    const thumbnails = this.getThumbnailsFromData(playerData);
+    const result: any = {};
+
+    // Sort by width to get best quality for each type
+    const sortedThumbnails = thumbnails.sort((a: any, b: any) => {
+      return (b.width || 0) - (a.width || 0);
+    });
+
+    sortedThumbnails.forEach((thumb: any) => {
+      const url = thumb.url;
+      if (url.includes('maxresdefault') && !result.maxresdefault) result.maxresdefault = url;
+      if (url.includes('hqdefault') && !result.hqdefault) result.hqdefault = url;
+      if (url.includes('mqdefault') && !result.mqdefault) result.mqdefault = url;
+      if (url.includes('sddefault') && !result.sddefault) result.sddefault = url;
+      if (url.includes('default') && !url.includes('hqdefault') && !url.includes('maxresdefault') && !result.default) result.default = url;
+    });
+
+    return result;
+  }
+
 }
 
 export default YouTubeScraper;

@@ -54,6 +54,15 @@ if (initialData) {
 const jsonData = scraper.extractAllYoutubeDataJson(htmlString);
 console.log('ytInitialData JSON:', jsonData.ytInitialData);
 console.log('ytInitialPlayerResponse JSON:', jsonData.ytInitialPlayerResponse);
+
+// Extract thumbnail URLs
+const thumbnailUrl = scraper.extractThumbnailUrl(htmlString);
+const allThumbnails = scraper.extractAllThumbnailUrls(htmlString);
+const thumbnailsByQuality = scraper.extractThumbnailsByQuality(htmlString);
+
+console.log('Main thumbnail:', thumbnailUrl);
+console.log('All thumbnails:', allThumbnails);
+console.log('High quality thumbnail:', thumbnailsByQuality.maxresdefault);
 ```
 
 ### Browser Extension Usage
@@ -121,6 +130,15 @@ Extracts ytInitialPlayerResponse as formatted JSON string.
 ##### `extractAllYoutubeDataJson(html: string): { ytInitialData: string | null, ytInitialPlayerResponse: string | null }`
 Extracts both major YouTube data objects as JSON strings.
 
+##### `extractThumbnailUrl(html: string): string`
+Extracts the main thumbnail URL from YouTube HTML.
+
+##### `extractAllThumbnailUrls(html: string): string[]`
+Extracts all available thumbnail URLs from YouTube HTML.
+
+##### `extractThumbnailsByQuality(html: string): { hqdefault?: string, maxresdefault?: string, default?: string, mqdefault?: string, sddefault?: string }`
+Extracts thumbnail URLs organized by quality (hqdefault, maxresdefault, etc.).
+
 ### Interfaces
 
 ```typescript
@@ -136,6 +154,15 @@ interface ScraperOptions {
 interface VideoInfo {
   title: string;
   description: string;
+  thumbnailUrl?: string;
+  allThumbnails?: string[];
+  thumbnailsByQuality?: {
+    hqdefault?: string;
+    maxresdefault?: string;
+    default?: string;
+    mqdefault?: string;
+    sddefault?: string;
+  };
 }
 ```
 
