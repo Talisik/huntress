@@ -6,6 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "ts-node test/simple-test.ts",
+    "test:article": "ts-node test/article-parser-test.ts",
+    "test:content": "ts-node test/content-extraction-test.ts",
     "build": "tsc",
     "dev": "ts-node src/index.ts"
   },
