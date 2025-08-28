@@ -3,7 +3,6 @@ src/
 test/
 
 # Development files
-tsconfig.json
 .gitignore
 .npmignore
 

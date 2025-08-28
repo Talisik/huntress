@@ -12,7 +12,6 @@
           "undici-types": [
               "./node_modules/undici-types/index.d.ts"
           ]
-          // "tree-kill": ["./node_modules/tree-kill/index.d.ts"]
       }
   },
   "include": ["src/**/*"]

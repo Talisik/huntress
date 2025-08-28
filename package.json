@@ -1,9 +1,13 @@
 {
   "name": "talisik-huntress",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "A TypeScript library for extracting and working with YouTube video transcripts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "tsconfig.json"
+  ],
   "scripts": {
     "test": "ts-node test/simple-test.ts",
     "test:article": "ts-node test/article-parser-test.ts",
@@ -36,6 +40,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "jsdom": "^26.1.0"
+    "jsdom": "^26.1.0",
+    "talisik-huntress": "file:talisik-huntress-1.1.2.tgz"
   }
 }
