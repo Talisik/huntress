@@ -1,0 +1,20 @@
+# Source files (not needed in published package)
+src/
+test/
+
+# Development files
+tsconfig.json
+.gitignore
+.npmignore
+
+# Sample files (too large for npm)
+sample_article.html
+sample-youtube.html
+transcript.json
+
+# Stopwords files (not needed in published package)
+english_stopwords.txt
+tagalog_stopwords.txt
+
+# Build artifacts that shouldn't be published
+*.tsbuildinfo
