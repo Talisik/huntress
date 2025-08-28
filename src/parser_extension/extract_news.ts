@@ -702,7 +702,9 @@ class NewsExtract {
                 '[role="main"]',
                 '.story-content',
                 '.article-body',
-                '.post-body'
+                '.post-body',
+                '.articleBody',
+                '.articleContent'
             ];
             
             for (const selector of contentSelectors) {
@@ -713,6 +715,50 @@ class NewsExtract {
                         return content;
                     }
                 }
+            }
+            
+            // Try to find the main content area by looking for the largest text block
+            const allElements = doc.querySelectorAll('div, section, article');
+            let bestContent = '';
+            let bestLength = 0;
+            
+            allElements.forEach(element => {
+                const text = element.textContent || '';
+                const cleanedText = text.trim()
+                    .replace(/\s+/g, ' ')
+                    .replace(/\n\s*\n/g, '\n')
+                    .trim();
+                
+                // Skip if it contains too much navigation/advertisement content
+                const noisePatterns = [
+                    /advertisement/gi,
+                    /need a wellness break/gi,
+                    /sign up for/gi,
+                    /view more/gi,
+                    /most popular/gi,
+                    /recommended for you/gi,
+                    /loading content/gi,
+                    /at a glance/gi,
+                    /brand talk/gi,
+                    /sports/gi,
+                    /showbiz/gi,
+                    /lifestyle/gi,
+                    /opinion/gi,
+                    /hashtag/gi,
+                    /pinoy abroad/gi,
+                    /scitech/gi
+                ];
+                
+                const hasNoise = noisePatterns.some(pattern => pattern.test(cleanedText));
+                
+                if (!hasNoise && cleanedText.length > bestLength && cleanedText.length > 200) {
+                    bestContent = cleanedText;
+                    bestLength = cleanedText.length;
+                }
+            });
+            
+            if (bestContent) {
+                return bestContent;
             }
             
             // Fallback: extract from paragraphs
@@ -734,7 +780,7 @@ class NewsExtract {
     // Helper method to clean HTML for content extraction
     clean_html_for_content(doc: Document): void {
         // Remove unwanted tags
-        const unwantedTags = ['script', 'style', 'nav', 'header', 'footer', 'aside', 'sidebar', 'advertisement', 'ads'];
+        const unwantedTags = ['script', 'style', 'nav', 'header', 'footer', 'aside', 'sidebar', 'advertisement', 'ads', 'iframe'];
         unwantedTags.forEach(tag => {
             const elements = doc.querySelectorAll(tag);
             elements.forEach(el => el.remove());
@@ -744,7 +790,10 @@ class NewsExtract {
         const unwantedClasses = [
             'sidebar', 'footer', 'header', 'nav', 'menu', 'advertisement', 'ads',
             'related', 'comments', 'social', 'share', 'newsletter', 'popup',
-            'cookie', 'banner', 'modal', 'overlay', 'sticky'
+            'cookie', 'banner', 'modal', 'overlay', 'sticky', 'widget',
+            'recommended', 'trending', 'most-read', 'outbrain', 'carousel',
+            'newsletter-widget', 'at_a_glance', 'brand-talk', 'showbiz',
+            'lifestyle', 'opinion', 'hashtag', 'pinoy-abroad', 'scitech'
         ];
         
         unwantedClasses.forEach(className => {
@@ -753,11 +802,43 @@ class NewsExtract {
         });
         
         // Remove elements with unwanted IDs
-        const unwantedIds = ['sidebar', 'footer', 'header', 'nav', 'comments', 'ads'];
+        const unwantedIds = [
+            'sidebar', 'footer', 'header', 'nav', 'comments', 'ads',
+            'trending_most_read_container', 'carousel_compact_top_container',
+            'newsletter-widget-container', 'at_a_glance_container'
+        ];
         unwantedIds.forEach(id => {
             const elements = doc.querySelectorAll(`#${id}`);
             elements.forEach(el => el.remove());
         });
+        
+        // Remove elements with specific text patterns
+        const unwantedTextPatterns = [
+            'advertisement', 'advertisement', 'Need a wellness break?',
+            'Sign up for', 'VIEW MORE', 'Most Popular', 'Other Stories',
+            'Recommended for you', 'LOADING CONTENT', 'At a Glance',
+            'Brand Talk', 'Sports', 'Pinoy Abroad', 'SciTech', 'Showbiz',
+            'Lifestyle', 'Opinion', 'Hashtag'
+        ];
+        
+        // Remove elements containing unwanted text
+        const allElements = doc.querySelectorAll('*');
+        allElements.forEach(el => {
+            const text = el.textContent || '';
+            if (unwantedTextPatterns.some(pattern => text.includes(pattern))) {
+                // Check if this is a substantial element (not just a small text node)
+                if (el.children.length > 0 || text.length > 50) {
+                    el.remove();
+                }
+            }
+        });
+        
+        // Remove CSS and JavaScript content
+        const styleElements = doc.querySelectorAll('style');
+        styleElements.forEach(el => el.remove());
+        
+        const scriptElements = doc.querySelectorAll('script');
+        scriptElements.forEach(el => el.remove());
     }
 
     // Helper method to extract and clean text from elements
@@ -766,7 +847,11 @@ class NewsExtract {
         
         elements.forEach(element => {
             // Remove unwanted child elements
-            const unwantedSelectors = ['script', 'style', 'nav', 'header', 'footer', 'aside', 'advertisement', 'ads'];
+            const unwantedSelectors = [
+                'script', 'style', 'nav', 'header', 'footer', 'aside', 
+                'advertisement', 'ads', 'iframe', '.widget', '.newsletter',
+                '.related', '.trending', '.recommended', '.outbrain'
+            ];
             unwantedSelectors.forEach(selector => {
                 const unwantedElements = element.querySelectorAll(selector);
                 unwantedElements.forEach(el => el.remove());
@@ -779,8 +864,47 @@ class NewsExtract {
                 .replace(/\n\s*\n/g, '\n') // Replace multiple newlines with single newline
                 .trim();
             
-            if (cleanedText.length > 50) { // Only include substantial text
-                texts.push(cleanedText);
+            // Filter out unwanted text patterns
+            const unwantedPatterns = [
+                /advertisement/gi,
+                /need a wellness break\?/gi,
+                /sign up for/gi,
+                /view more/gi,
+                /most popular/gi,
+                /other stories/gi,
+                /recommended for you/gi,
+                /loading content/gi,
+                /at a glance/gi,
+                /brand talk/gi,
+                /sports/gi,
+                /pinoy abroad/gi,
+                /scitech/gi,
+                /showbiz/gi,
+                /lifestyle/gi,
+                /opinion/gi,
+                /hashtag/gi,
+                /^\d+\s+\d+\s+\d+\s+\d+\s+\d+Share.*$/gm, // Navigation numbers
+                /Filtered by:.*$/gm, // Filter text
+                /Tags:.*$/gm, // Tags section
+                /Next Story.*$/gm, // Next story links
+                /var\s+.*=.*;.*$/gm, // JavaScript variables
+                /function\s*\(.*\).*$/gm, // JavaScript functions
+                /\.\w+\s*\{[^}]*\}/gm, // CSS rules
+            ];
+            
+            let filteredText = cleanedText;
+            unwantedPatterns.forEach(pattern => {
+                filteredText = filteredText.replace(pattern, '');
+            });
+            
+            // Clean up extra whitespace
+            filteredText = filteredText
+                .replace(/\s+/g, ' ')
+                .replace(/\n\s*\n/g, '\n')
+                .trim();
+            
+            if (filteredText.length > 100 && !filteredText.match(/^[0-9\s]+$/)) { // Only include substantial text, not just numbers
+                texts.push(filteredText);
             }
         });
         
@@ -942,21 +1066,268 @@ class NewsExtract {
         /**
          * Generate news content
          */
-        if (js) {
-            const content = catch_error('None', () => {
-                if (_content) {
-                    return unicode(_content.replace(/'/g, '').split(' ').join(' '));
-                }
-                return null;
-            });
+        if (_content !== null) {
+            let content = unicode(_content.replace(/'/g, '').split(' ').join(' '));
+            
+            // Post-process content to remove noise
+            content = this.clean_extracted_content(content);
+            
             return content;
         } else {
-            if (_content !== null) {
-                return unicode(_content.replace(/'/g, '').split(' ').join(' '));
-            } else {
-                return null;
-            }
+            return null;
         }
+    }
+
+    // New method to clean extracted content
+    clean_extracted_content(content: string): string {
+        if (!content) return '';
+        
+        // Remove unwanted patterns more aggressively
+        const unwantedPatterns = [
+            // Navigation and UI elements
+            /^\d+\s+\d+\s+\d+\s+\d+\s+\d+Share.*$/gm,
+            /Filtered by:.*$/gm,
+            /Tags:.*$/gm,
+            /Next Story.*$/gm,
+            /VIEW MORE.*$/gm,
+            /Most Popular.*$/gm,
+            /Other Stories.*$/gm,
+            /Recommended for you.*$/gm,
+            /LOADING CONTENT.*$/gm,
+            /LOAD MORE ARTICLES.*$/gm,
+            /RETRY LOADING.*$/gm,
+            
+            // Advertisement and newsletter content
+            /advertisement/gi,
+            /Need a wellness break\?.*$/gm,
+            /Sign up for.*$/gm,
+            /Stay up-to-date.*$/gm,
+            /Please enter a valid email address.*$/gm,
+            /Your email is safe with us.*$/gm,
+            
+            // Section headers
+            /At a Glance.*$/gm,
+            /Brand Talk.*$/gm,
+            /Sports.*$/gm,
+            /Pinoy Abroad.*$/gm,
+            /SciTech.*$/gm,
+            /Showbiz.*$/gm,
+            /Lifestyle.*$/gm,
+            /Opinion.*$/gm,
+            /Hashtag.*$/gm,
+            /News.*$/gm,
+            /Money.*$/gm,
+            
+            // CSS and JavaScript - more aggressive
+            /\.\w+\s*\{[^}]*\}/gm,
+            /var\s+.*=.*;.*$/gm,
+            /function\s*\(.*\).*$/gm,
+            /csell_zoneid.*$/gm,
+            /csell_article_tags.*$/gm,
+            /crowdyPage.*$/gm,
+            /csell_isMobile.*$/gm,
+            /csellViewsJson.*$/gm,
+            /\.AR_\d+.*$/gm,
+            /\.ob-widget.*$/gm,
+            /background-image.*$/gm,
+            /background-size.*$/gm,
+            /width:\d+px.*$/gm,
+            /height:\d+px.*$/gm,
+            /padding:.*$/gm,
+            /margin:.*$/gm,
+            /color:.*$/gm,
+            /font-size:.*$/gm,
+            /font-family:.*$/gm,
+            /text-decoration:.*$/gm,
+            /display:.*$/gm,
+            /box-sizing:.*$/gm,
+            /@media.*$/gm,
+            /-webkit-.*$/gm,
+            /-moz-.*$/gm,
+            /border:.*$/gm,
+            /overflow:.*$/gm,
+            /position:.*$/gm,
+            /float:.*$/gm,
+            /clear:.*$/gm,
+            /flex:.*$/gm,
+            /justify-content:.*$/gm,
+            /align-items:.*$/gm,
+            /font-weight:.*$/gm,
+            /border-radius:.*$/gm,
+            /filter:.*$/gm,
+            /transform:.*$/gm,
+            /transition:.*$/gm,
+            /animation:.*$/gm,
+            /z-index:.*$/gm,
+            /opacity:.*$/gm,
+            /visibility:.*$/gm,
+            /cursor:.*$/gm,
+            /text-align:.*$/gm,
+            /vertical-align:.*$/gm,
+            /line-height:.*$/gm,
+            /letter-spacing:.*$/gm,
+            /text-transform:.*$/gm,
+            /white-space:.*$/gm,
+            /word-wrap:.*$/gm,
+            /word-break:.*$/gm,
+            /text-overflow:.*$/gm,
+            /list-style:.*$/gm,
+            /table-layout:.*$/gm,
+            /border-collapse:.*$/gm,
+            /caption-side:.*$/gm,
+            /empty-cells:.*$/gm,
+            /content:.*$/gm,
+            /quotes:.*$/gm,
+            /counter-reset:.*$/gm,
+            /counter-increment:.*$/gm,
+            /resize:.*$/gm,
+            /outline:.*$/gm,
+            /outline-offset:.*$/gm,
+            /box-shadow:.*$/gm,
+            /text-shadow:.*$/gm,
+            /clip:.*$/gm,
+            /clip-path:.*$/gm,
+            /mask:.*$/gm,
+            /mask-image:.*$/gm,
+            /mask-mode:.*$/gm,
+            /mask-repeat:.*$/gm,
+            /mask-position:.*$/gm,
+            /mask-clip:.*$/gm,
+            /mask-origin:.*$/gm,
+            /mask-size:.*$/gm,
+            /mask-composite:.*$/gm,
+            /mask-border:.*$/gm,
+            /mask-border-source:.*$/gm,
+            /mask-border-mode:.*$/gm,
+            /mask-border-slice:.*$/gm,
+            /mask-border-width:.*$/gm,
+            /mask-border-outset:.*$/gm,
+            /mask-border-repeat:.*$/gm,
+            /mask-border:.*$/gm,
+            
+            // HTML entities and formatting
+            /&[a-zA-Z0-9#]+;/g,
+            /\\n\s*\\n/g,
+            /\\t/g,
+            /\\"/g,
+            /\\\\/g,
+            
+            // Empty lines and excessive whitespace
+            /^\s*$/gm,
+            /\n\s*\n\s*\n/g,
+            
+            // Specific website noise
+            /×/g,
+            /‹›/g,
+            /◀/g,
+            /▶/g,
+            
+            // Technical content
+            /url\([^)]*\)/g,
+            /https?:\/\/[^\s]+/g,
+            /data-src="[^"]*"/g,
+            /data-widget-id="[^"]*"/g,
+            /data-ob-template="[^"]*"/g,
+            /typeof\s+[^;]+/g,
+            /OBR\.extern\.researchWidget\(\)/g,
+        ];
+        
+        let cleanedContent = content;
+        
+        // Apply all patterns
+        unwantedPatterns.forEach(pattern => {
+            cleanedContent = cleanedContent.replace(pattern, '');
+        });
+        
+        // Remove lines that contain too much technical content
+        const lines = cleanedContent.split('\n');
+        const filteredLines = lines.filter(line => {
+            const trimmed = line.trim();
+            
+            // Skip lines that are too short
+            if (trimmed.length < 20) return false;
+            
+            // Skip lines that are just numbers or symbols
+            if (trimmed.match(/^[0-9\s\-_×‹›◀▶]+$/)) return false;
+            
+            // Skip lines with too much technical content
+            const technicalPatterns = [
+                /\.\w+\s*\{/,
+                /var\s+/,
+                /function\s*\(/,
+                /csell_/,
+                /\.AR_/,
+                /\.ob-/,
+                /background-/,
+                /width:/,
+                /height:/,
+                /padding:/,
+                /margin:/,
+                /color:/,
+                /font-/,
+                /text-/,
+                /display:/,
+                /box-/,
+                /@media/,
+                /-webkit-/,
+                /-moz-/,
+                /border:/,
+                /overflow:/,
+                /position:/,
+                /float:/,
+                /clear:/,
+                /flex:/,
+                /justify-/,
+                /align-/,
+                /font-weight:/,
+                /border-radius:/,
+                /filter:/,
+                /transform:/,
+                /transition:/,
+                /animation:/,
+                /z-index:/,
+                /opacity:/,
+                /visibility:/,
+                /cursor:/,
+                /text-align:/,
+                /vertical-align:/,
+                /line-height:/,
+                /letter-spacing:/,
+                /text-transform:/,
+                /white-space:/,
+                /word-/,
+                /text-overflow:/,
+                /list-style:/,
+                /table-/,
+                /border-collapse:/,
+                /caption-side:/,
+                /empty-cells:/,
+                /content:/,
+                /quotes:/,
+                /counter-/,
+                /resize:/,
+                /outline:/,
+                /box-shadow:/,
+                /text-shadow:/,
+                /clip:/,
+                /mask:/,
+                /url\(/,
+                /data-/,
+                /typeof/,
+                /OBR\./,
+            ];
+            
+            const hasTechnicalContent = technicalPatterns.some(pattern => pattern.test(trimmed));
+            return !hasTechnicalContent;
+        });
+        
+        // Join lines and clean up
+        cleanedContent = filteredLines.join('\n')
+            .replace(/\s+/g, ' ')
+            .replace(/\n\s*\n/g, '\n')
+            .trim();
+        
+        return cleanedContent;
     }
 
     get_scraper_api_response(): NewsExtractData {
