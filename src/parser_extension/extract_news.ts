@@ -88,8 +88,8 @@ class NewsExtract {
             const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
             if (base64Pattern.test(source) && source.length > 100) {
                 try {
-                    // Try to decode as base64
-                    html = Buffer.from(source, "base64").toString("utf-8");
+                    // Try to decode as base64 using browser-compatible method
+                    html = atob(source);
                 } catch (e) {
                     html = source;
                 }

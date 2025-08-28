@@ -34,10 +34,10 @@ class OnlineParser {
     get_article_extension({ raw_content }: { raw_content: string }): Payload {
         try {
             // Extracting article using raw content and NewsExtract
-            const start_time = process.hrtime();
+            const start_time = performance.now();
             const scraped_article = new NewsExtract(this.url, raw_content, false, "en", 60, undefined, {});
-            const end_time = process.hrtime(start_time);
-            const elapsed = end_time[0] + end_time[1] / 1e9;
+            const end_time = performance.now();
+            const elapsed = (end_time - start_time) / 1000; // Convert to seconds
             console.log("PROCESSING PARSER TIME: ", elapsed);
             return scraped_article.get_scraper_api_response();
         } catch (e) {
@@ -64,12 +64,12 @@ export function parserExtensionView(body: Article): {
 
     const fqdn = get_fqdn(body.url);
 
-    const start_time = process.hrtime();
+    const start_time = performance.now();
 
     const payload = scraper_obj.get_article_extension({ raw_content: body.raw_content });
 
-    const elapsed = process.hrtime(start_time);
-    const processing_time_in_seconds = elapsed[0] + elapsed[1] / 1e9;
+    const end_time = performance.now();
+    const processing_time_in_seconds = (end_time - start_time) / 1000; // Convert to seconds
 
     if (payload.article_status === "Done") {
         return {
