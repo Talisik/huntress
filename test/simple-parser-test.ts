@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { GeneralParser } from '../src/parser_extension/general_parser';
+import {GeneralParserView} from '../src/parser_extension/parser';
 
 interface TestCase {
     name: string;
@@ -70,7 +71,7 @@ function runSimpleParserTest(): void {
 
             // 🎯 SIMPLE USAGE - Just URL and HTML!
             const startTime = Date.now();
-            const result = GeneralParser.parseContent(testCase.url, html);
+            const result = GeneralParserView({url: testCase.url, raw_content: html});
             // Write the result as JSON to a file
             const jsonOutputPath = path.join(__dirname, `output_${index + 1}.json`);
             fs.writeFileSync(jsonOutputPath, JSON.stringify(result, null, 2), 'utf8');
@@ -83,43 +84,43 @@ function runSimpleParserTest(): void {
 
             // Validate results
             console.log(`   ⏱️  Parsing time: ${duration}ms`);
-            console.log(`   📝 Title: ${result.title || 'No title found'}`);
-            console.log(`   📄 Content length: ${result.content?.length || 0} chars`);
-            console.log(`   🔢 Word count: ${result.wordCount}`);
-            console.log(`   ⏰ Reading time: ${result.readingTime} min`);
-            console.log(`   🖼️  Images: ${result.metadata.images?.length || 0}`);
-            console.log(`   🔗 Links: ${result.metadata.links?.length || 0}`);
+            console.log(`   📝 Title: ${result.data[0].article_title || 'No title found'}`);
+            console.log(`   📄 Content length: ${result.data[0].article_content?.length || 0} chars`);
+            console.log(`   🔢 Word count: ${result.data[0].article_wordCount}`);
+            console.log(`   ⏰ Reading time: ${result.data[0].article_readingTime} min`);
+            console.log(`   🖼️  Images: ${result.data[0].article_images?.length || 0}`);
+            console.log(`   🔗 Links: ${result.data[0].article_links?.length || 0}`);
 
             // Test assertions
             let testPassed = true;
             const errors: string[] = [];
 
             // Check if content was extracted
-            if (!result.content || result.content.length < (testCase.minContentLength || 100)) {
-                errors.push(`Content too short: ${result.content?.length || 0} chars`);
+            if (!result.data[0].article_content || result.data[0].article_content.length < (testCase.minContentLength || 100)) {
+                errors.push(`Content too short: ${result.data.article_content?.length || 0} chars`);
                 testPassed = false;
             }
 
             // Check expected title if provided (normalize quotes for comparison)
-            if (testCase.expectedTitle && result.title) {
+            if (testCase.expectedTitle && result.data[0].article_title) {
                 const normalizeTitle = (title: string) => title.replace(/['']/g, "'").trim();
-                if (normalizeTitle(result.title) !== normalizeTitle(testCase.expectedTitle)) {
-                    errors.push(`Title mismatch. Expected: "${testCase.expectedTitle}", Got: "${result.title}"`);
+                if (normalizeTitle(result.data[0].article_title) !== normalizeTitle(testCase.expectedTitle)) {
+                    errors.push(`Title mismatch. Expected: "${testCase.expectedTitle}", Got: "${result.data[0].article_title}"`);
                     testPassed = false;
                 }
-            } else if (testCase.expectedTitle && !result.title) {
+            } else if (testCase.expectedTitle && !result.data[0].article_title) {
                 errors.push(`Expected title "${testCase.expectedTitle}" but no title found`);
                 testPassed = false;
             }
 
             // Check if URL is preserved
-            if (result.url !== testCase.url) {
-                errors.push(`URL not preserved. Expected: "${testCase.url}", Got: "${result.url}"`);
+            if (result.data[0].article_url !== testCase.url) {
+                errors.push(`URL not preserved. Expected: "${testCase.url}", Got: "${result.data[0].article_url}"`);
                 testPassed = false;
             }
 
             // Check if metadata was extracted
-            if (!result.metadata || Object.keys(result.metadata).length === 0) {
+            if (!result.data[0].article_metadata || Object.keys(result.data[0].article_metadata).length === 0) {
                 errors.push('No metadata extracted');
                 testPassed = false;
             }
@@ -132,8 +133,8 @@ function runSimpleParserTest(): void {
             }
 
             // Show content preview
-            if (result.content) {
-                const preview = result.content.substring(0, 150).replace(/\s+/g, ' ').trim();
+            if (result.data[0].article_content) {
+                const preview = result.data[0].article_content.substring(0, 150).replace(/\s+/g, ' ').trim();
                 console.log(`   📖 Preview: ${preview}...`);
             }
 

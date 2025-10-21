@@ -137,7 +137,7 @@ console.log('High quality thumbnail:', thumbnailsByQuality.maxresdefault);
 ### Article Content Parsing
 
 ```typescript
-import { parserExtensionView, Article } from 'huntress';
+import { parserExtensionView, GeneralParserView, Article } from 'huntress';
 
 // Prepare article data
 const articleData: Article = {
@@ -145,19 +145,36 @@ const articleData: Article = {
   raw_content: '<html>...</html>' // Raw HTML content of the article
 };
 
-// Parse article content
-const result = parserExtensionView(articleData);
+// Option 1: Advanced parsing with NewsExtract (more comprehensive)
+const advancedResult = parserExtensionView(articleData);
 
-if (result.status === 'Done') {
-  const parsedData = result.data[0];
+if (advancedResult.status === 'Done') {
+  const parsedData = advancedResult.data[0];
   console.log('Article Title:', parsedData.article_title);
   console.log('Article Content:', parsedData.article_content);
   console.log('Authors:', parsedData.article_authors);
   console.log('Published Date:', parsedData.article_published_date);
   console.log('Images:', parsedData.article_images);
-  console.log('Processing Time:', result.processing_time_in_seconds);
+  console.log('Processing Time:', advancedResult.processing_time_in_seconds);
 } else {
-  console.error('Error:', result.error_message);
+  console.error('Error:', advancedResult.error_message);
+}
+
+// Option 2: General parsing (faster, simpler)
+const generalResult = GeneralParserView(articleData);
+
+if (generalResult.status === 'Done') {
+  const parsedData = generalResult.data[0];
+  console.log('Article Title:', parsedData.article_title);
+  console.log('Article Content:', parsedData.article_content);
+  console.log('Article Website:', parsedData.article_website_name);
+  console.log('Article FQDN:', parsedData.article_fqdn);
+  console.log('Word Count:', parsedData.article_wordCount);
+  console.log('Reading Time:', parsedData.article_readingTime, 'minutes');
+  console.log('Language:', parsedData.article_language);
+  console.log('Processing Time:', generalResult.processing_time_in_seconds);
+} else {
+  console.error('Error:', generalResult.error_message);
 }
 ```
 
@@ -292,7 +309,7 @@ Extracts thumbnail URLs organized by quality.
 
 #### `parserExtensionView(body: Article)`
 
-Parses article content from raw HTML and returns structured data.
+Advanced article parsing using NewsExtract engine. Provides comprehensive content extraction with detailed metadata.
 
 **Parameters:**
 ```typescript
@@ -312,17 +329,61 @@ interface Article {
 }
 ```
 
-**Payload includes:**
+#### `GeneralParserView(body: Article)`
+
+General web content parsing using GeneralParser engine. Faster and simpler alternative to NewsExtract.
+
+**Parameters:**
+```typescript
+interface Article {
+  url: string;
+  raw_content: string;
+}
+```
+
+**Returns:**
+```typescript
+{
+  data: [{
+    article_title: string;
+    article_content: string;
+    article_website_name: string;
+    article_url: string;
+    article_published_date: string;
+    article_images: string[];
+    article_videos: string[];
+    article_section: string[];
+    article_authors: string;
+    article_fqdn: string;
+    article_language: string;
+    article_status: string;
+    article_error_status: string | null;
+    article_wordCount: number;
+    article_readingTime: number;
+    article_metadata: object;
+    is_article: boolean;
+    source: string;
+    source_property: string;
+  }];
+  status: string;
+  error_message: string | null;
+  processing_time_in_seconds: number;
+}
+```
+
+**Common Payload Fields:**
 - `article_title`: Article title
 - `article_content`: Main article content
-- `article_authors`: Array of author names
+- `article_authors`: Author name(s)
 - `article_published_date`: Publication date
 - `article_images`: Array of image URLs
 - `article_website_name`: Website name
 - `article_fqdn`: Domain name
 - `article_section`: Article sections/categories
 - `article_language`: Content language
-- `article_status`: Processing status
+- `article_status`: Processing status ("Done" or "Error")
+- `article_wordCount`: Word count (GeneralParserView only)
+- `article_readingTime`: Estimated reading time in minutes (GeneralParserView only)
 
 ### Interfaces
 
