@@ -1,7 +1,7 @@
 {
   "name": "talisik-huntress",
-  "version": "1.1.7",
-  "description": "A TypeScript library for extracting and working with YouTube video transcripts.",
+  "version": "1.1.9",
+  "description": "A TypeScript library for browser extensions to extract clean content from web pages and YouTube transcripts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -12,6 +12,8 @@
     "test": "ts-node test/simple-test.ts",
     "test:article": "ts-node test/article-parser-test.ts",
     "test:content": "ts-node test/content-extraction-test.ts",
+    "test:general": "ts-node test/general-parser-test.ts",
+    "test:simple": "ts-node test/simple-parser-test.ts",
     "build": "tsc",
     "dev": "ts-node src/index.ts"
   },

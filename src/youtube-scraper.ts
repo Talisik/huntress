@@ -161,11 +161,21 @@ export class YouTubeScraper {
   }
 
   private extractTitle(data: any): string {
-    // Try multiple paths to find the title
+
     const titlePaths = [
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[1]?.videoPrimaryInfoRenderer?.title?.runs?.[0]?.text',
       'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[0]?.videoPrimaryInfoRenderer?.title?.runs?.[0]?.text',
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[1]?.videoPrimaryInfoRenderer?.h1?.simpleText',
       'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[0]?.videoPrimaryInfoRenderer?.h1?.simpleText',
       'videoDetails?.title',
+      'microformat?.playerMicroformatRenderer?.title',
+      'microformat?.playerMicroformatRenderer?.title?.simpleText',
+      'microformat?.playerMicroformatRenderer?.title?.runs?.[0]?.text',
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.videoRenderer?.title?.runs?.[0]?.text',
+      'headline?.simpleText',
+      'headline',
+      'metadata?.title',
+      'streamingData?.videoDetails?.title',
       'microformat?.playerMicroformatRenderer?.title?.simpleText'
     ];
 
@@ -180,7 +190,8 @@ export class YouTubeScraper {
   private extractDescription(data: any): string {
     // Look for description in multiple possible locations
     const descriptionPaths = [
-      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[1]?.videoSecondaryInfoRenderer?.attributedDescription?.content',  // Fixed: correct path with [1] index
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[2]?.videoSecondaryInfoRenderer?.attributedDescription?.content',  // Fixed: correct path with [2] index
+      'contents?.twoColumnWatchNextResults?.results?.results?.contents?.[1]?.videoSecondaryInfoRenderer?.attributedDescription?.content',  // Fallback with [1] index
       'contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults?.results?.[0]?.itemSectionRenderer?.contents?.[0]?.backstagePostRenderer?.contentText?.runs?.[0]?.text',
       'contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults?.results?.[0]?.itemSectionRenderer?.contents?.[0]?.expandableVideoDescriptionBodyRenderer?.attributedDescriptionBodyText?.content',
       'videoDetails?.shortDescription',

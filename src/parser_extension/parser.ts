@@ -19,6 +19,7 @@ export function get_fqdn(url: string): string {
 }
 
 import { NewsExtract } from './extract_news';
+import { GeneralParser as WebContentParser } from './general_parser';
 
 class OnlineParser {
     url: string;
@@ -47,6 +48,72 @@ class OnlineParser {
                 article_error_status: e instanceof Error ? e.message : String(e)
             };
         }
+    }
+}
+
+class GeneralParser {
+    url: string;
+    status_code: number | null;
+    page_content: string | null;
+
+    constructor(url: string) {
+        this.url = url;
+        this.status_code = null;
+        this.page_content = null;
+    }
+}
+
+export function GeneralParserView(body: Article): {
+    data: any;
+    status: string;
+    error_message: string | null;
+    processing_time_in_seconds: number;
+} {
+    if (!body) {
+        throw new Error("Invalid Request Parameter");
+    }
+
+    const start_time = performance.now();
+
+    try {
+        // Simple one-line call - just URL and HTML
+        const result = WebContentParser.parseContent(body.url, body.raw_content);
+        
+        const end_time = performance.now();
+        const processing_time_in_seconds = (end_time - start_time) / 1000;
+
+        return {
+            data: {
+                url: body.url,                                    // Always required
+                title: result.title,                              // Always required
+                content: result.content,                          // Always required
+                cleanedHtml: result.cleanedHtml,                  // Always required
+                description: result.metadata.description,         // Optional
+                publishDate: result.metadata.publishDate,         // Optional
+                images: result.metadata.images                    // Optional
+            },
+            status: "Done",
+            error_message: null,
+            processing_time_in_seconds
+        };
+    } catch (error) {
+        const end_time = performance.now();
+        const processing_time_in_seconds = (end_time - start_time) / 1000;
+
+        return {
+            data: {
+                url: body.url,
+                title: null,
+                content: null,
+                cleanedHtml: undefined,
+                description: undefined,
+                publishDate: undefined,
+                images: undefined
+            },
+            status: "Error",
+            error_message: error instanceof Error ? error.message : String(error),
+            processing_time_in_seconds
+        };
     }
 }
 

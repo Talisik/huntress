@@ -6,6 +6,7 @@ A powerful TypeScript library for extracting structured data from YouTube pages 
 
 - **YouTube Data Extraction**: Extract video titles, descriptions, thumbnails, and raw YouTube data objects
 - **Article Content Parsing**: Parse article content, titles, authors, and metadata from web pages
+- **General Web Content Parser**: Clean and extract content from any web page with noise removal
 - **Multiple Output Formats**: Get structured data, formatted text, or raw JSON
 - **TypeScript Support**: Full type definitions included
 - **Lightweight**: No heavy dependencies, works in both browser and Node.js environments
@@ -18,6 +19,77 @@ npm install huntress
 ```
 
 ## 🛠️ Usage
+
+### General Web Content Parsing (New!)
+
+The `GeneralParser` class provides powerful web content extraction capabilities, perfect for browser extensions and content analysis tools.
+
+```typescript
+import { GeneralParser } from 'huntress';
+
+// Simple static method - recommended for most use cases
+const result = GeneralParser.parseContent(url, htmlString);
+console.log('Title:', result.title);
+console.log('Content:', result.content);
+console.log('Word Count:', result.wordCount);
+console.log('Reading Time:', result.readingTime, 'minutes');
+console.log('Author:', result.metadata.author);
+console.log('Images:', result.metadata.images);
+
+// Advanced usage with custom options
+const parser = new GeneralParser({
+    removeImages: false,
+    removeLinks: false,
+    preserveFormatting: true,
+    minContentLength: 100,
+    includeMetadata: true
+});
+
+const parsed = parser.parse(htmlString, url);
+console.log('Parsed content:', parsed);
+
+// Extract only text content
+const textOnly = GeneralParser.extractText(htmlString, 50);
+console.log('Clean text:', textOnly);
+
+// Extract only title
+const title = GeneralParser.extractTitle(htmlString);
+console.log('Page title:', title);
+
+// Clean HTML while preserving structure
+const cleanHtml = GeneralParser.cleanHtml(htmlString, {
+    removeImages: false,
+    removeLinks: false
+});
+console.log('Cleaned HTML:', cleanHtml);
+```
+
+### Browser Extension Usage
+
+```typescript
+// Perfect for browser extensions - uses native browser APIs
+import { GeneralParser } from 'huntress';
+
+// In a content script
+const currentPageHtml = document.documentElement.outerHTML;
+const currentUrl = window.location.href;
+
+// Extract clean content from current page
+const content = GeneralParser.parseContent(currentUrl, currentPageHtml);
+
+// Send to background script
+chrome.runtime.sendMessage({
+    type: 'PAGE_CONTENT',
+    data: {
+        title: content.title,
+        content: content.content,
+        wordCount: content.wordCount,
+        readingTime: content.readingTime,
+        author: content.metadata.author,
+        images: content.metadata.images
+    }
+});
+```
 
 ### YouTube Data Scraping
 
@@ -89,28 +161,70 @@ if (result.status === 'Done') {
 }
 ```
 
-### Browser Extension Usage
+## 📚 API Reference
 
+### GeneralParser Class
+
+A comprehensive web content parser that removes noise and extracts clean content from any web page.
+
+#### Constructor
 ```typescript
-// In a browser extension content script
-import { YouTubeScraper } from 'huntress';
-
-const scraper = new YouTubeScraper({ includeConsoleLog: true });
-
-// Get current page HTML
-const html = document.documentElement.outerHTML;
-
-// Extract video information
-const videoInfo = scraper.extractVideoInfo(html);
-
-// Send data to background script
-chrome.runtime.sendMessage({
-  type: 'VIDEO_DATA',
-  data: videoInfo
-});
+new GeneralParser(options?: GeneralParserOptions)
 ```
 
-## 📚 API Reference
+**Options:**
+```typescript
+interface GeneralParserOptions {
+    removeImages?: boolean;        // Remove all images (default: false)
+    removeLinks?: boolean;         // Remove all links (default: false)
+    preserveFormatting?: boolean;  // Keep HTML formatting (default: true)
+    minContentLength?: number;     // Minimum content length (default: 50)
+    includeMetadata?: boolean;     // Extract metadata (default: true)
+    cleanHtmlOnly?: boolean;       // Only clean HTML, don't extract text (default: false)
+}
+```
+
+#### Static Methods (Recommended)
+
+##### `GeneralParser.parseContent(url: string, html: string): ParsedContent`
+Main method for parsing web content. Returns comprehensive parsed data.
+
+##### `GeneralParser.extractText(html: string, minLength?: number): string | null`
+Extract only clean text content without metadata.
+
+##### `GeneralParser.extractTitle(html: string): string | null`
+Extract only the page title.
+
+##### `GeneralParser.cleanHtml(html: string, options?: GeneralParserOptions): string | null`
+Clean HTML by removing noise while preserving structure.
+
+#### Instance Methods
+
+##### `parse(html: string, url?: string): ParsedContent`
+Parse HTML content and return structured data.
+
+#### Return Type
+
+```typescript
+interface ParsedContent {
+    url: string | null;
+    title: string | null;
+    content: string | null;
+    metadata: {
+        description?: string;
+        author?: string;
+        publishDate?: string;
+        language?: string;
+        keywords?: string[];
+        images?: string[];
+        links?: string[];
+    };
+    wordCount: number;
+    readingTime: number; // in minutes
+    cleanedHtml?: string;
+    cleanedFullHtml?: string;
+}
+```
 
 ### YouTubeScraper Class
 
@@ -284,78 +398,3 @@ npm run dev
 
 ### Project Structure
 ```
-huntress/
-├── src/
-│   ├── index.ts                    # Main entry point
-│   ├── youtube-scraper.ts          # YouTube scraper implementation
-│   └── parser_extension/
-│       ├── parser.ts               # Article parser main logic
-│       ├── extract_news.ts         # News extraction logic
-│       ├── author.ts               # Author extraction
-│       └── helpers.ts              # Helper functions
-├── test/
-│   ├── simple-test.ts              # YouTube scraper tests
-│   ├── article-parser-test.ts      # Article parser tests
-│   └── content-extraction-test.ts  # Content extraction tests
-├── dist/                           # Compiled output
-├── sample-youtube.html             # Sample YouTube data
-└── sample_article.html             # Sample article data
-```
-
-## 🧪 Testing
-
-Run the test suite with the included sample data:
-
-```bash
-npm test
-```
-
-The tests will:
-- Extract video information from sample YouTube HTML
-- Test article parsing with sample article HTML
-- Validate JSON extraction
-- Demonstrate usage patterns for both YouTube and article parsing
-
-## 📄 License
-
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📋 Changelog
-
-### v1.0.0
-- Initial release
-- YouTube data extraction with DOM and regex methods
-- Article content parsing with metadata extraction
-- Video information extraction (title, description, thumbnails)
-- JSON data extraction from YouTube pages
-- TypeScript support
-
-### v1.1.0
-
-- Online Parsers
-
-## 🔗 Related Projects
-
-- [YouTube Data API](https://developers.google.com/youtube/v3) - Official YouTube API
-- [Puppeteer](https://pptr.dev/) - Headless Chrome automation
-- [Cheerio](https://cheerio.js.org/) - Server-side jQuery implementation
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [test files](test/) for usage examples
-2. Open an issue on GitHub
-3. Review the API documentation above
-
----
-
-**Note**: This library is designed for educational and research purposes. Please respect websites' Terms of Service and robots.txt when scraping data.
