@@ -76,8 +76,8 @@ export function GeneralParserView(body: Article): {
     const start_time = performance.now();
 
     try {
-        // Use GeneralParser.parseContent and output a flattened result (not deeply nested).
-        const result = WebContentParser.parseContent(body.url, body.raw_content);
+        // Use GeneralParser.extractEverything for maximum text extraction
+        const result = WebContentParser.extractEverything(body.url, body.raw_content);
 
         const end_time = performance.now();
         const processing_time_in_seconds = (end_time - start_time) / 1000;
@@ -86,10 +86,26 @@ export function GeneralParserView(body: Article): {
         const hostname = get_fqdn(body.url);
         const websiteName = hostname.replace(/^www\./, '').split('.')[0];
 
+        // Extract clean text content from HTML if needed
+        let cleanTextContent = result.content || "";
+        if (result.content && result.content.includes('<')) {
+            // If content contains HTML tags, extract text from it
+            try {
+                // Use jsdom for Node.js environment
+                const jsdom = require('jsdom');
+                const { JSDOM } = jsdom;
+                const dom = new JSDOM(result.content);
+                cleanTextContent = dom.window.document.body?.textContent || dom.window.document.textContent || result.content;
+            } catch (e) {
+                // Fallback: just remove HTML tags with regex (not ideal but works)
+                cleanTextContent = result.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+        }
+
         // Flatten the output object for "data"
         const payload = {
             article_title: result.title || "",
-            article_content: result.content || "",
+            article_content: cleanTextContent,
             article_website_name: websiteName,
             article_url: body.url,
             article_published_date: result.metadata.publishDate || new Date().toISOString(),
@@ -99,8 +115,8 @@ export function GeneralParserView(body: Article): {
             article_authors: result.metadata.author || "",
             article_fqdn: hostname,
             article_language: result.metadata.language || "en",
-            article_status: result.content ? "Done" : "Error",
-            article_wordCount: result.wordCount ?? (result.content ? result.content.split(/\s+/).length : 0),
+            article_status: cleanTextContent ? "Done" : "Error",
+            article_wordCount: result.wordCount ?? (cleanTextContent ? cleanTextContent.split(/\s+/).filter(word => word.length > 0).length : 0),
             article_readingTime: result.readingTime,
             article_metadata: { ...result.metadata },
             is_article: true,

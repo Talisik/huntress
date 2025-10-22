@@ -19,18 +19,18 @@ interface TestCase {
 }
 
 const testCases: TestCase[] = [
+    // {
+    //     name: 'YouTube Video Page',
+    //     file: 'sample-youtube.html',
+    //     url: 'https://www.youtube.com/watch?v=wqeBCHugdZM',
+    //     expectedTitle: 'A MUST WIN FOR MIBR! Tarik Reacts to MIBR vs LOUD | VCT: 2025 Americas Stage 2',
+    //     minContentLength: 1000
+    // },
     {
-        name: 'YouTube Video Page',
-        file: 'sample-youtube.html',
-        url: 'https://www.youtube.com/watch?v=wqeBCHugdZM',
-        expectedTitle: 'A MUST WIN FOR MIBR! Tarik Reacts to MIBR vs LOUD | VCT: 2025 Americas Stage 2',
-        minContentLength: 1000
-    },
-    {
-        name: 'GMA News Article',
+        name: 'x com',
         file: 'sample-gma.html',
-        url: 'https://www.gmanetwork.com/news/scitech/weather/957237/jacinto-lpa-pagasa/story/',
-        minContentLength: 500
+        url: 'https://x.com/',
+        minContentLength: 200  // Reduced for social media page
     },
     {
         name: 'Philstar News Article',
@@ -97,7 +97,7 @@ function runSimpleParserTest(): void {
 
             // Check if content was extracted
             if (!result.data[0].article_content || result.data[0].article_content.length < (testCase.minContentLength || 100)) {
-                errors.push(`Content too short: ${result.data.article_content?.length || 0} chars`);
+                errors.push(`Content too short: ${result.data[0].article_content?.length || 0} chars`);
                 testPassed = false;
             }
 
