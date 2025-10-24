@@ -712,7 +712,7 @@ class NewsExtract {
                 if (elements.length > 0) {
                     const content = this.extract_text_from_elements(Array.from(elements));
                     if (content && content.trim().length > 100) {
-                        return content;
+                        return this.clean_extracted_content(content);
                     }
                 }
             }
@@ -758,7 +758,7 @@ class NewsExtract {
             });
             
             if (bestContent) {
-                return bestContent;
+                return this.clean_extracted_content(bestContent);
             }
             
             // Fallback: extract from paragraphs
@@ -766,7 +766,7 @@ class NewsExtract {
             if (paragraphs.length > 0) {
                 const content = this.extract_text_from_elements(Array.from(paragraphs));
                 if (content && content.trim().length > 100) {
-                    return content;
+                    return this.clean_extracted_content(content);
                 }
             }
             
@@ -944,7 +944,7 @@ class NewsExtract {
             
             const article_content = contents.join('\n');
             if (article_content !== "" && article_content !== null) {
-                return article_content;
+                return this.clean_extracted_content(article_content);
             }
             return null;
         } catch (e) {
@@ -963,7 +963,7 @@ class NewsExtract {
                 const article_content = Array.from(pTags)
                     .map(p => p.textContent || '')
                     .join('\n');
-                return article_content;
+                return this.clean_extracted_content(article_content);
             }
             return null;
         } catch (e) {
@@ -982,7 +982,7 @@ class NewsExtract {
                 const article_content = Array.from(pTags)
                     .map(p => p.textContent || '')
                     .join('\n');
-                return article_content;
+                return this.clean_extracted_content(article_content);
             }
             return null;
         } catch (e) {
@@ -997,7 +997,8 @@ class NewsExtract {
             const doc = parser.parseFromString(page_source, 'text/html');
             const article_content = doc.querySelector("div.entry-content");
             if (article_content) {
-                return article_content.textContent || '';
+                const content = article_content.textContent || '';
+                return this.clean_extracted_content(content);
             }
             return null;
         } catch (e) {
@@ -1012,7 +1013,8 @@ class NewsExtract {
             const doc = parser.parseFromString(page_source, 'text/html');
             const article_content = doc.querySelector('div.articleBody.articleContent p');
             if (article_content) {
-                return article_content.textContent || '';
+                const content = article_content.textContent || '';
+                return this.clean_extracted_content(content);
             }
             return null;
         } catch (e) {
@@ -1027,7 +1029,8 @@ class NewsExtract {
             const doc = parser.parseFromString(page_source, 'text/html');
             const article_content = doc.querySelector("div#adsense-target");
             if (article_content) {
-                return article_content.textContent || '';
+                const content = article_content.textContent || '';
+                return this.clean_extracted_content(content);
             }
             return null;
         } catch (e) {
@@ -1082,8 +1085,131 @@ class NewsExtract {
     clean_extracted_content(content: string): string {
         if (!content) return '';
         
+        // First, remove CSS blocks entirely
+        content = content.replace(/\.[a-zA-Z_][\w\-]*\s*\{[^}]*\}/g, '');
+        content = content.replace(/@[a-zA-Z_][\w\-]*\s*\{[^}]*\}/g, '');
+        content = content.replace(/\#[a-zA-Z_][\w\-]*\s*\{[^}]*\}/g, '');
+        
+        // Remove CSS property patterns more aggressively
+        content = content.replace(/[a-zA-Z\-]+\s*:\s*[^;{}]+;?/g, '');
+        
+        // Remove JavaScript arrow functions and incomplete assignments
+        content = content.replace(/\([^)]*\)\s*=>\s*[^;]+/g, '');
+        content = content.replace(/\s*=\s*"[^"]*";\s*/g, '');
+        content = content.replace(/\s*=\s*<[^>]*>[^<]*<\/[^>]*>;\s*/g, '');
+        content = content.replace(/\([^)]*\)\s*=>\s*\w+\s*===/g, '');
+        
+        // Remove JavaScript function definitions and code blocks
+        content = content.replace(/function\s+\w+\s*\([^)]*\)\s*\{[^}]*\}/g, '');
+        content = content.replace(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, ''); // Remove /* */ comments
+        content = content.replace(/\/\/.*$/gm, ''); // Remove // comments
+        content = content.replace(/\w+\s*\.\s*\w+\s*=\s*[^;]+;/g, ''); // Remove property assignments
+        content = content.replace(/\w+\s*\.\s*appendChild\([^)]*\);?/g, ''); // Remove appendChild calls
+        content = content.replace(/\w+\s*\.\s*innerHTML\s*=\s*[^;]+;?/g, ''); // Remove innerHTML assignments
+        
+        // Remove JavaScript patterns
+        content = content.replace(/document\.[a-zA-Z]+\([^)]*\)/g, '');
+        content = content.replace(/window\.[a-zA-Z]+\([^)]*\)/g, '');
+        content = content.replace(/\w+\s*=\s*\w+\s*\|\|\s*\[\]/g, '');
+        content = content.replace(/\.push\([^)]*\)/g, '');
+        content = content.replace(/addEventListener\([^)]*\)/g, '');
+        content = content.replace(/querySelector[All]*\([^)]*\)/g, '');
+        content = content.replace(/createElement\([^)]*\)/g, '');
+        content = content.replace(/insertBefore\([^)]*\)/g, '');
+        content = content.replace(/insertAdjacentHTML\([^)]*\)/g, '');
+        
         // Remove unwanted patterns more aggressively
         const unwantedPatterns = [
+            // CSS selectors and rules
+            /\.[a-zA-Z_][\w\-]*\s*>\s*\.[a-zA-Z_][\w\-]*/g,
+            /\.[a-zA-Z_][\w\-]*\s*,\s*\.[a-zA-Z_][\w\-]*/g,
+            /\.[a-zA-Z_][\w\-]*\s+\.[a-zA-Z_][\w\-]*/g,
+            /\#[a-zA-Z_][\w\-]*\s*>\s*\.[a-zA-Z_][\w\-]*/g,
+            /\.tdi_\d+/g,
+            /\.wpb_wrapper/g,
+            /\.tdc-elements/g,
+            /\.vc_column-inner/g,
+            /\.tdb_single_/g,
+            /\.td-theme-wrap/g,
+            /\.td-block-/g,
+            /\.td-post-/g,
+            /\.td-icon-/g,
+            /\.td-social-/g,
+            /\.addtoany_/g,
+            /\.a2a_/g,
+            
+            // JavaScript variables and functions
+            /block_tdi_\d+\./g,
+            /tdBlocksArray\./g,
+            /adsbygoogle/g,
+            /window\.adsbygoogle/g,
+            
+            // Social media buttons and sharing
+            /FacebookTwitterPinterestWhatsApp/g,
+            /Facebook.*Twitter.*Pinterest.*WhatsApp/g,
+            /const\s+publicNoticesLink\s*=/g,
+            /const\s+businessLinkExists\s*=/g,
+            /Array\.from\([^)]*\)\.find/g,
+            /Array\.from\([^)]*\)\.some/g,
+            /\.textContent\.trim\(\)/g,
+            /businessLink\.className/g,
+            /businessLink\.href/g,
+            /businessLink\.innerHTML/g,
+            /sep\.className/g,
+            /insertBefore\([^)]*\)/g,
+            
+            // More JavaScript patterns
+            /const\s+\w+\s*=\s*\[.*\]/g,
+            /if\s*\([^)]*\)\s*\{/g,
+            /if\s*\([^)]*\s*&&\s*[^)]*$/g, // Incomplete if statements
+            /\}\s*else\s*\{/g,
+            /\.includes\([^)]*\)/g,
+            /\.style\.display\s*=/g,
+            /li\.textContent\.trim\(\)/g,
+            
+            // Arrow functions and incomplete assignments
+            /\([^)]*\)\s*=>\s*[^;]+/g,
+            /\s*=\s*"[^"]*";\s*/g,
+            /\s*=\s*<[^>]*>[^<]*<\/[^>]*>;\s*/g,
+            /\([^)]*\)\s*=>\s*\w+\s*===/g,
+            /a\s*=>\s*a\s*===\s*"[^"]*"/g,
+            /\s*=\s*"tdb-[^"]*"/g,
+            /\s*=\s*"td-[^"]*"/g,
+            
+            // JavaScript function definitions and DOM manipulation
+            /function\s+\w+\s*\([^)]*\)\s*\{[^}]*\}/g,
+            /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g,
+            /\/\/.*$/gm,
+            /\w+\s*\.\s*appendChild\([^)]*\);?/g,
+            /\w+\s*\.\s*innerHTML\s*=\s*[^;]+;?/g,
+            /\w+\s*\.\s*className\s*=\s*[^;]+;?/g,
+            /\w+\s*\.\s*src\s*=\s*[^;]+;?/g,
+            /\w+\s*\.\s*allowFullscreen\s*=\s*[^;]+;?/g,
+            /\w+\s*\.\s*controls\s*=\s*[^;]+;?/g,
+            /\w+\s*\.\s*autoplay\s*=\s*[^;]+;?/g,
+            /openVideoModal\([^)]*\)/g,
+            /close\.className/g,
+            /close\.innerHTML/g,
+            /contentElement\./g,
+            /wrapper\.appendChild/g,
+            /modal\.appendChild/g,
+            
+            // Configuration and data patterns
+            /td_column_number\s*=/g,
+            /block_type\s*=/g,
+            /found_posts\s*=/g,
+            /header_color\s*=/g,
+            /ajax_pagination_infinite_stop\s*=/g,
+            /max_num_pages\s*=/g,
+            
+            // Advertisement patterns
+            /Discover\s+more/g,
+            /ArtTelevisionPortable\s+speakers/g,
+            /CadburyMilkManila/g,
+            /Online\s+TV\s+streaming\s+services/g,
+            /TVMusicEntertainment\s+center/g,
+            /Soybean/g,
+            
             // Navigation and UI elements
             /^\d+\s+\d+\s+\d+\s+\d+\s+\d+Share.*$/gm,
             /Filtered by:.*$/gm,
@@ -1249,6 +1375,38 @@ class NewsExtract {
             
             // Skip lines that are just numbers or symbols
             if (trimmed.match(/^[0-9\s\-_×‹›◀▶]+$/)) return false;
+            
+            // Skip lines that are CSS selectors or rules
+            if (trimmed.match(/^\.[a-zA-Z_][\w\-]*\s*[>,\s]/)) return false;
+            if (trimmed.match(/^\#[a-zA-Z_][\w\-]*\s*[>,\s]/)) return false;
+            if (trimmed.match(/^[a-zA-Z\-]+\s*:\s*[^;{}]+;?\s*$/)) return false;
+            if (trimmed.match(/\{[^}]*\}/)) return false;
+            
+            // Skip lines that contain CSS class names
+            if (trimmed.match(/\.tdi_\d+|\.wpb_wrapper|\.tdc-elements|\.vc_column|\.tdb_|\.td-/)) return false;
+            
+            // Skip JavaScript lines
+            if (trimmed.match(/document\.|window\.|addEventListener|querySelector|createElement/)) return false;
+            if (trimmed.match(/block_tdi_\d+|tdBlocksArray|adsbygoogle/)) return false;
+            if (trimmed.match(/const\s+\w+\s*=|Array\.from\(|\.textContent\.trim\(\)|\.className\s*=|\.href\s*=|\.innerHTML\s*=/)) return false;
+            if (trimmed.match(/if\s*\(.*\)\s*\{|else\s*\{|\}\s*else/)) return false;
+            if (trimmed.match(/if\s*\([^)]*\s*&&\s*[^)]*$/)) return false; // Incomplete if statements
+            if (trimmed.match(/FacebookTwitterPinterestWhatsApp|Discover\s+more|CadburyMilkManila/)) return false;
+            if (trimmed.match(/td_column_number|block_type|found_posts|header_color|max_num_pages/)) return false;
+            
+            // Skip arrow functions and incomplete assignments
+            if (trimmed.match(/\([^)]*\)\s*=>\s*\w+\s*===/)) return false;
+            if (trimmed.match(/^\s*=\s*"[^"]*";\s*$/)) return false;
+            if (trimmed.match(/^\s*=\s*<[^>]*>/)) return false;
+            if (trimmed.match(/a\s*=>\s*a\s*===\s*"[^"]*"/)) return false;
+            if (trimmed.match(/^\s*=\s*"tdb-|^\s*=\s*"td-/)) return false;
+            
+            // Skip JavaScript function definitions and DOM manipulation
+            if (trimmed.match(/function\s+\w+\s*\([^)]*\)\s*\{/)) return false;
+            if (trimmed.match(/\/\*.*\*\/|\/\/.*/)) return false;
+            if (trimmed.match(/\w+\s*\.\s*(appendChild|innerHTML|className|src|allowFullscreen|controls|autoplay)\s*=/)) return false;
+            if (trimmed.match(/openVideoModal|contentElement\.|wrapper\.|modal\./)) return false;
+            if (trimmed.match(/close\.className|close\.innerHTML/)) return false;
             
             // Skip lines with too much technical content
             const technicalPatterns = [

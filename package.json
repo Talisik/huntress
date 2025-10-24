@@ -1,6 +1,6 @@
 {
   "name": "talisik-huntress",
-  "version": "1.1.12",
+  "version": "1.1.14",
   "description": "A TypeScript library for browser extensions to extract clean content from web pages and YouTube transcripts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

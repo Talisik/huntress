@@ -15,7 +15,7 @@ async function testArticleParser() {
 
     try {
         // Read the sample HTML file
-        const sampleHtmlPath = join(__dirname, '..', 'sample-gma.html');
+        const sampleHtmlPath = join(__dirname, '..', 'sample_article.html');
         const htmlContent = readFileSync(sampleHtmlPath, 'utf-8');
         
         console.log('📄 Sample HTML loaded successfully');
