@@ -10,6 +10,7 @@ test/
 sample_article.html
 sample-youtube.html
 transcript.json
+*.html
 
 # Stopwords files (not needed in published package)
 english_stopwords.txt

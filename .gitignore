@@ -140,4 +140,3 @@ vite.config.ts.timestamp-*
 
 # Sample HTML files
 *.html
-*.json
